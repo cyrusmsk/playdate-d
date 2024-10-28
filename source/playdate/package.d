@@ -197,6 +197,8 @@ enum PDSystemEvent {
 alias PDCallbackFunction = int function(void* userData) @nogc;
 ///
 alias PDMenuItemCallbackFunction = void function(void* userdata) @nogc;
+///
+alias PDButtonCallbackFunction = int function(PDButtons button, int down, uint when, void* userdata) @nogc;
 
 /// Fill the passed-in `left` buffer (and `right` if it’s a stereo source) with `len` samples each and return `true`, or `false` if the source is silent through the cycle.
 alias AudioSourceFunction = bool function(void* context, short* left, short* right, int len) @nogc;
@@ -323,7 +325,7 @@ struct System {
   bool function() shouldDisplay24HourTime;
   ///
   @AddedIn(1, 13)
-  void function(int epoch, PDDateTime* datetime) convertEpochToDateTime;
+  void function(uint epoch, PDDateTime* datetime) convertEpochToDateTime;
   ///
   @AddedIn(1, 13)
   int function(PDDateTime* datetime) convertDateTimeToEpoch;
@@ -468,7 +470,7 @@ struct Video {
 		LCDVideoPlayer* p, int* outWidth, int* outHeight, float* outFrameRate, int* outFrameCount, int* outCurrentFrame
 	) getInfo;
   ///
-	LCDBitmap*function (LCDVideoPlayer *p) getContext;
+	LCDBitmap* function (LCDVideoPlayer *p) getContext;
 }
 
 ///
@@ -676,9 +678,257 @@ unittest {
 }
 
 ///
+enum SpriteCollisionResponseType {
+  ///
+  slide,
+  ///
+  freeze,
+  /// 
+  overlap,
+  /// 
+  bounce
+}
+
+///
+struct PDRect {
+  ///
+	float x;
+  ///
+	float y;
+  ///
+	float width;
+  ///
+	float height;
+}
+
+/// 
+struct CollisionPoint {
+  /// 
+  float x;
+  /// 
+  float y;
+}
+
+/// 
+struct CollisionVector {
+  /// 
+  int x;
+  /// 
+  int y;
+}
+
+/// 
+alias LCDSprite = Alias!(void*);
+/// 
+alias CWCollisionInfo = Alias!(void*);
+/// 
+alias CWItemInfo = Alias!(void*);
+
+/// 
+alias LCDSpriteDrawFunction = void function(LCDSprite* sprite, PDRect bounds, PDRect drawrect) @nogc;
+/// 
+alias LCDSpriteUpdateFunction = void function(LCDSprite* sprite) @nogc;
+/// 
+alias LCDSpriteCollisionFilterProc = SpriteCollisionResponseType function(LCDSprite* sprite, LCDSprite* other) @nogc;
+
+///
+struct SpriteCollisionInfo
+{
+  ///
+	LCDSprite* sprite;		  // The sprite being moved
+  ///
+	LCDSprite* other;		    // The sprite colliding with the sprite being moved
+  ///
+	SpriteCollisionResponseType responseType;	// The result of collisionResponse
+  ///
+	uint overlaps;		      // True if the sprite was overlapping other when the collision started. False if it didn’t overlap but tunneled through other.
+  ///
+	float ti;				        // A number between 0 and 1 indicating how far along the movement to the goal the collision occurred
+  ///
+	CollisionPoint move;	  // The difference between the original coordinates and the actual ones when the collision happened
+  ///
+	CollisionVector normal;	// The collision normal; usually -1, 0, or 1 in x and y. Use this value to determine things like if your character is touching the ground.
+  ///
+	CollisionPoint touch;	  // The coordinates where the sprite started touching other
+  ///
+	PDRect spriteRect;		  // The rectangle the sprite occupied when the touch happened
+  ///
+	PDRect otherRect; 		  // The rectangle the sprite being collided with occupied when the touch happened
+}
+
+/// 
+struct SpriteQueryInfo
+{
+  ///
+	LCDSprite* sprite;          // The sprite being intersected by the segment
+	      							        // ti1 and ti2 are numbers between 0 and 1 which indicate how far from the starting point of the line segment the collision happened
+  ///
+	float ti1;					        // entry point
+  ///
+	float ti2;					        // exit point
+  ///
+	CollisionPoint entryPoint;	// The coordinates of the first intersection between sprite and the line segment
+  ///
+	CollisionPoint exitPoint;	  // The coordinates of the second intersection between sprite and the line segment
+}
+
+///
 struct Sprite {
   @nogc nothrow:
-  // TODO: Implement Playdate Sprite API
+  
+  ///
+  void function(int flag) setAlwaysRedraw;
+  ///
+	void function(LCDRect dirtyRect) addDirtyRect;
+  ///
+	void function() drawSprites;
+  ///
+	void function() updateAndDrawSprites;
+
+  ///
+	LCDSprite* function() newSprite;
+  ///
+	void function(LCDSprite* sprite) freeSprite;
+  ///
+	LCDSprite* function(LCDSprite* sprite) copy;
+
+  ///
+	void function(LCDSprite* sprite) addSprite;
+  ///
+	void function(LCDSprite* sprite) removeSprite;
+  ///
+	void function(LCDSprite** sprites, int count) removeSprites;
+  ///
+	void function() removeAllSprites;
+  ///
+	int function() getSpriteCount;
+
+  ///
+	void function(LCDSprite* sprite, PDRect bounds) setBounds;
+  ///
+	PDRect function(LCDSprite* sprite) getBounds; 
+  ///
+	void function(LCDSprite* sprite, float x, float y) moveTo;
+  ///
+	void function(LCDSprite* sprite, float dx, float dy) moveBy; 
+
+  ///
+	void function(LCDSprite *sprite, LCDBitmap *image, LCDBitmapFlip flip) setImage;
+  ///
+	LCDBitmap* function(LCDSprite *sprite) getImage;
+  ///
+	void function(LCDSprite *s, float width, float height) setSize;
+  ///
+	void function(LCDSprite *sprite, short zIndex) setZIndex;
+  ///
+	short function(LCDSprite *sprite) getZIndex;
+
+  ///
+	void function(LCDSprite *sprite, LCDBitmapDrawMode mode) setDrawMode;
+  ///
+	void function(LCDSprite *sprite, LCDBitmapFlip flip) setImageFlip;
+  ///
+	LCDBitmapFlip function(LCDSprite *sprite) getImageFlip;
+  ///
+	void function(LCDSprite *sprite, LCDBitmap* stencil) setStencil; // deprecated in favor of setStencilImage()
+
+  ///
+	void function(LCDSprite *sprite, LCDRect clipRect) setClipRect;
+  ///
+	void function(LCDSprite *sprite) clearClipRect;
+  ///
+	void function(LCDRect clipRect, int startZ, int endZ) setClipRectsInRange;
+  ///
+	void function(int startZ, int endZ) clearClipRectsInRange;
+
+  ///
+	void function(LCDSprite *sprite, int flag) setUpdatesEnabled;
+  ///
+	int  function(LCDSprite *sprite) updatesEnabled;
+  ///
+	void function(LCDSprite *sprite, int flag) setCollisionsEnabled;
+  ///
+	int  function(LCDSprite *sprite) collisionsEnabled;
+  ///
+	void function(LCDSprite *sprite, int flag) setVisible;
+  ///
+	int  function(LCDSprite *sprite) isVisible;
+  ///
+	void function(LCDSprite *sprite, int flag) setOpaque;
+  ///
+	void function(LCDSprite *sprite) markDirty;
+
+  ///
+	void function(LCDSprite *sprite, ubyte tag) setTag;
+  ///
+	ubyte function(LCDSprite *sprite) getTag;
+
+  ///
+	void function(LCDSprite *sprite, int flag) setIgnoresDrawOffset;
+
+  ///
+	void function(LCDSprite *sprite, LCDSpriteUpdateFunction *func) setUpdateFunction;
+  ///
+	void function(LCDSprite *sprite, LCDSpriteDrawFunction *func) setDrawFunction;
+
+  ///
+	void function(LCDSprite *sprite, float *x, float *y) getPosition;
+
+	// Collisions
+  ///
+	void function() resetCollisionWorld;
+
+  ///
+	void function(LCDSprite *sprite, PDRect collideRect) setCollideRect;
+  ///
+	PDRect function(LCDSprite *sprite) getCollideRect;
+  ///
+	void function(LCDSprite *sprite) clearCollideRect;
+
+	// caller is responsible for freeing the returned array for all collision methods
+  ///
+	void function(LCDSprite *sprite, LCDSpriteCollisionFilterProc *func) setCollisionResponseFunction;
+  ///
+	SpriteCollisionInfo* function(LCDSprite *sprite, float goalX, float goalY, float *actualX, float *actualY, int *len) checkCollisions;			// access results using SpriteCollisionInfo *info = &results[i];
+  ///
+	SpriteCollisionInfo* function(LCDSprite *sprite, float goalX, float goalY, float *actualX, float *actualY, int *len) moveWithCollisions;
+  ///
+	LCDSprite** function(float x, float y, int *len) querySpritesAtPoint;
+  ///
+	LCDSprite** function(float x, float y, float width, float height, int *len) querySpritesInRect;
+  ///
+	LCDSprite** function(float x1, float y1, float x2, float y2, int *len) querySpritesAlongLine;
+  ///
+	SpriteQueryInfo* function(float x1, float y1, float x2, float y2, int *len) querySpriteInfoAlongLine;		// access results using SpriteQueryInfo *info = &results[i];
+  ///
+	LCDSprite** function(LCDSprite *sprite, int *len) overlappingSprites;
+  ///
+	LCDSprite** function(int *len) allOverlappingSprites;
+
+  ///
+  @AddedIn(1, 7)
+	void function(LCDSprite* sprite, ubyte[8] pattern) setStencilPattern;
+  ///
+  @AddedIn(1, 7)
+	void function(LCDSprite* sprite) clearStencil;
+
+  ///
+  @AddedIn(1, 7)
+	void  function(LCDSprite* sprite, void* userdata) setUserdata;
+  ///
+  @AddedIn(1, 7)
+	void* function(LCDSprite* sprite) getUserdata;
+
+  ///
+  @AddedIn(1, 10)
+	void function(LCDSprite *sprite, LCDBitmap* stencil, int tile) setStencilImage;
+	
+  ///
+  @AddedIn(2, 1)
+	void function(LCDSprite* s, float x, float y) setCenter;
+  ///
+  @AddedIn(2, 1)
+	void function(LCDSprite* s, float* x, float* y) getCenter;
 }
 
 ///
@@ -917,9 +1167,77 @@ struct Json {
 }
 
 ///
+struct PDScore {
+  ///
+  uint rank;
+  ///
+  uint value;
+  ///
+  char* player;
+}
+
+///
+struct PDScoresList {
+  ///
+  char* boardID;
+  ///
+	uint count;
+  ///
+	uint lastUpdated;
+  ///
+	int playerIncluded;
+  ///
+	uint limit;
+  ///
+	PDScore* scores;
+}
+
+///
+struct PDBoard {
+  ///
+  char* boardID;
+  ///
+  char* name;
+}
+
+///
+struct PDBoardsList {
+  /// 
+  uint count;
+  /// 
+  uint lastUpdated;
+  /// 
+  PDBoard* boards;
+}
+
+///
+alias AddScoreCallback = void* function(PDScore* score, const char* errorMessage) @nogc;
+///
+alias PersonalBestCallback = void* function(PDScore* score, const char* errorMessage) @nogc;
+///
+alias BoardsListCallback = void* function(PDBoardsList* boards, const char* errorMessage) @nogc;
+///
+alias ScoresCallback = void* function(PDScoresList* scores, const char* errorMessage) @nogc;
+
+///
 struct Scoreboards {
   @nogc nothrow:
-	// TODO: Implement Playdate Scoreboards API
+  ///
+	int function(const char* boardId, uint value, AddScoreCallback callback) addScore;
+  ///
+	int function(const char* boardId, PersonalBestCallback callback) getPersonalBest;
+  ///
+	void function(PDScore* score) freeScore;
+
+  ///
+	int function(BoardsListCallback callback) getScoreboards;
+  ///
+	void function(PDBoardsList* boardsList) freeBoardsList;
+
+  ///
+	int function(const char* boardId, ScoresCallback callback) getScores;
+  ///
+	void function(PDScoresList* scoresList) freeScoresList;
 }
 
 ///
