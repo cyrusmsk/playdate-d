@@ -9,6 +9,7 @@
 module playdate;
 
 import std.meta : Alias;
+import core.stdc.stdarg : va_list;
 
 @nogc nothrow:
 
@@ -18,7 +19,7 @@ struct AddedIn {
   this(ubyte major, ubyte minor, ubyte patch = 0) {}
 }
 
-alias LCDPattern = ubyte;
+alias LCDPattern = ubyte[16];
 alias LCDColor = ubyte;
 
 alias LCDBitmap = Alias!(void);
@@ -326,6 +327,21 @@ struct System {
   ///
   @AddedIn(1, 13)
   int function(PDDateTime* datetime) convertDateTimeToEpoch;
+  ///
+  @AddedIn(2, 0)
+  void function() clearICache;
+  ///
+  @AddedIn(2, 4)
+	void function(PDButtonCallbackFunction cb, void* buttonud, int queuesize) setButtonCallback;
+  ///
+  @AddedIn(2, 4)
+	void function(void function(const char* data) callback) setSerialMessageCallback;
+  ///
+  @AddedIn(2, 4)
+	int function(char **outstr, const char *fmt, va_list args) vaFormatString;
+  ///
+  @AddedIn(2, 4)
+	int function(const char *str, const char *format, ...) parseString;
 }
 
 ///
@@ -618,6 +634,22 @@ struct Graphics {
 	///
   @AddedIn(1, 12)
 	LCDFont* function(LCDFontData* data, int wide) makeFontFromData;
+
+	///
+  @AddedIn(2, 1)
+  int function() getTextTracking;
+
+	///
+  @AddedIn(2, 5)
+  void function(int x, int y, LCDColor c) setPixel;
+
+	///
+  @AddedIn(2, 5)
+	LCDSolidColor function(LCDBitmap* bitmap, int x, int y) getBitmapPixel;
+
+	///
+  @AddedIn(2, 5)
+	void function(LCDBitmapTable* table, int* count, int* width) getBitmapTableInfo;
 }
 
 ///
