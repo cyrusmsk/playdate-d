@@ -22,7 +22,7 @@ struct AddedIn {
 alias LCDPattern = ubyte[16];
 alias LCDColor = ubyte;
 
-alias LCDBitmap = Alias!(void);
+alias LCDBitmap = Alias!(void*);
 alias LCDBitmapTable = Alias!(void*);
 alias LCDFont = Alias!(void*);
 alias LCDFontData = Alias!(void*);
@@ -1154,10 +1154,152 @@ struct Sound {
 	SoundSignal* signal;
 }
 
+/// 
+alias lua_State = void* function() @nogc;
+
+/// 
+alias lua_CFunction = int* function(lua_State* L) @nogc;
+
+/// 
+alias LuaUDObject = Alias!(void*);
+
+///
+enum l_valtype {
+  /// 
+  Int,
+  /// 
+  Float,
+  /// 
+  Str
+}
+
+/// 
+struct lua_reg {
+  /// 
+  const char* name;
+  /// 
+  lua_CFunction func;
+}
+
+///
+enum LuaType
+{
+	typeNil,
+	typeBool,
+	typeInt,
+	typeFloat,
+	typeString,
+	typeTable,
+	typeFunction,
+	typeThread,
+	typeObject
+}
+
+/// 
+struct lua_val {
+  /// 
+  const char* name;
+  /// 
+  l_valtype type;
+  ///
+  union v
+  {
+    ///
+    uint intval;
+    ///
+    float floatval;
+    ///
+    const char* strval;
+  }
+}
+
 ///
 struct Lua {
   @nogc nothrow:
-	// TODO: Implement Playdate Lua API
+
+	// these two return 1 on success, else 0 with an error message in outErr
+  ///
+	int function(lua_CFunction f, const char* name, const char** outErr) addFunctio;
+  ///
+	int function(
+    const char* name, 
+    const lua_reg* reg, 
+    const lua_val* vals, 
+    int isstatic, 
+    const char** outErr
+  ) registerClass;
+
+  ///
+	void function(lua_CFunction f) pushFunction;
+  ///
+	int function() indexMetatable;
+
+  ///
+	void function() stop;
+  ///
+	void function()start; 
+	
+	// stack operations
+  ///
+	int function() getArgCount; 
+  ///
+	LuaType function(int pos, const char** outClass) getArgType;
+
+  ///
+	int function(int pos) argIsNil;
+  ///
+	int function(int pos) getArgBool;
+  ///
+	int function(int pos) getArgInt;
+  ///
+	float function(int pos) getArgFloat;
+  ///
+	const char* function(int pos) getArgString;
+  ///
+	const char* function(int pos, size_t* outlen) getArgBytes;
+  ///
+	void* function(int pos, char* type, LuaUDObject** outud) getArgObject;
+	
+  ///
+	LCDBitmap* function(int pos) getBitmap;
+  ///
+	LCDSprite* function(int pos) getSprite;
+
+	// for returning values back to Lua
+  ///
+	void function() pushNil;
+  ///
+	void function(int val) pushBool;
+  ///
+	void function(int val) pushInt;
+  ///
+	void function(float val) pushFloat;
+  ///
+	void function(const char* str) pushString;
+  ///
+	void function(const char* str, size_t len) pushBytes;
+  ///
+	void function(LCDBitmap* bitmap) pushBitmap;
+  ///
+	void function(LCDSprite* sprite) pushSprite;
+	
+  ///
+	LuaUDObject* function(void* obj, char* type, int nValues) pushObject;
+  ///
+	LuaUDObject* function(LuaUDObject* obj) retainObject;
+  ///
+	void function(LuaUDObject* obj) releaseObject;
+	
+  ///
+	void function(LuaUDObject* obj, uint slot) setUserValue; // sets item on top of stack and pops it
+  ///
+	int function(LuaUDObject* obj, uint slot) getUserValue; // pushes item at slot to top of stack, returns stack position
+
+	// calling lua from C has some overhead. use sparingly!
+  ///
+	void function(const char* name, int nargs) callFunction_deprecated;
+  ///
+	int function(const char* name, int nargs, const char** outerr) callFunction;
 }
 
 ///
