@@ -10,6 +10,8 @@ module playdate;
 
 import std.meta : Alias;
 import core.stdc.stdarg : va_list;
+import core.stdc.stdlib : strtol;
+import core.stdc.string;
 
 @nogc nothrow:
 
@@ -1300,6 +1302,76 @@ struct Lua {
 	void function(const char* name, int nargs) callFunction_deprecated;
   ///
 	int function(const char* name, int nargs, const char** outerr) callFunction;
+}
+
+/// 
+enum ValueType {
+  Null,
+  True,
+  False,
+  Integer,
+  Float,
+  String,
+  Array,
+  Table
+}
+
+/// 
+struct Value {
+  ValueType type;
+
+  union
+  {
+    int intval;
+    float floatval;
+    char* stringval;
+    void* arrayval;
+    void* tableval;
+  }
+}
+
+///
+pragma(inline) int intValue(Value value) {
+  switch ( value.type )
+  {
+    case ValueType.Integer:
+      return value.intval;
+    case ValueType.Float:
+      return cast(int)value.floatval;
+    case ValueType.String:
+      return cast(int)strtol(value.stringval, null, 10);
+    case ValueType.True:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+///
+pragma(inline) float floatValue(Value value) {
+  switch ( value.type )
+  {
+    case ValueType.Integer:
+      return cast(float) value.intval;
+    case ValueType.Float:
+      return value.floatval;
+    case ValueType.String:
+      return 0;
+    case ValueType.True:
+      return 1.0;
+    default:
+      return 0.0;
+  }
+}
+
+///
+pragma(inline) int boolValue(Value value) {
+  return value.type == ValueType.String ? strcmp(value.stringval,"") != 0 : intValue(value);
+}
+
+///
+pragma(inline) char* stringValue(Value value) {
+  return value.type == ValueType.String ? value.stringval : null;
 }
 
 ///
