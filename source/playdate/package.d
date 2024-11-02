@@ -11,7 +11,7 @@ module playdate;
 import std.meta : Alias;
 import core.stdc.stdarg : va_list;
 import core.stdc.stdlib : strtol;
-import core.stdc.string;
+import core.stdc.string : strcmp;
 
 @nogc nothrow:
 
@@ -1166,7 +1166,7 @@ alias lua_CFunction = int* function(lua_State* L) @nogc;
 alias LuaUDObject = Alias!(void*);
 
 ///
-enum l_valtype {
+enum LuaValType {
   /// 
   Int,
   /// 
@@ -1176,7 +1176,7 @@ enum l_valtype {
 }
 
 /// 
-struct lua_reg {
+struct LuaReg{
   /// 
   const char* name;
   /// 
@@ -1198,13 +1198,13 @@ enum LuaType
 }
 
 /// 
-struct lua_val {
+struct LuaVal{
   /// 
   const char* name;
   /// 
-  l_valtype type;
+  LuaValType type;
   ///
-  union v
+  union
   {
     ///
     uint intval;
@@ -1221,12 +1221,12 @@ struct Lua {
 
 	// these two return 1 on success, else 0 with an error message in outErr
   ///
-	int function(lua_CFunction f, const char* name, const char** outErr) addFunctio;
+	int function(lua_CFunction f, const char* name, const char** outErr) addFunction;
   ///
 	int function(
     const char* name, 
-    const lua_reg* reg, 
-    const lua_val* vals, 
+    const LuaReg* reg, 
+    const LuaVal* vals, 
     int isstatic, 
     const char** outErr
   ) registerClass;
@@ -1239,7 +1239,7 @@ struct Lua {
   ///
 	void function() stop;
   ///
-	void function()start; 
+	void function() start; 
 	
 	// stack operations
   ///
@@ -1318,14 +1318,20 @@ enum ValueType {
 
 /// 
 struct Value {
-  ValueType type;
+  ///
+  char type;
 
   union
   {
+    ///
     int intval;
+    ///
     float floatval;
+    ///
     char* stringval;
+    ///
     void* arrayval;
+    ///
     void* tableval;
   }
 }
