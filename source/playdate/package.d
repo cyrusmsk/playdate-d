@@ -1001,16 +1001,100 @@ struct SoundChannelApi {
   PDSynthSignalValue function(SoundChannel channel) getWetLevelSignal;
 }
 
-///
-struct SoundFileplayer {
-  @nogc nothrow:
-  // TODO: Implement Playdate Sound Fileplayer API
-}
+/// Opaque handle for a `FilePlayer`.
+alias FilePlayer = Alias!(void*);
+
+/// Callback for providing MP3 stream data.
+/// Return the number of bytes written to `data`.
+alias MP3StreamSourceCallback = int function(ubyte* data, int bytes, void* userdata) @nogc;
 
 ///
-struct SoundSample {
+struct SoundFileplayerApi {
   @nogc nothrow:
-  // TODO: Implement Playdate Sound Sample API
+
+  /// Creates a new `FilePlayer`.
+  FilePlayer function() newPlayer;
+  /// Frees a `FilePlayer`.
+  void function(FilePlayer player) freePlayer;
+  /// Associates a file with the `player`.
+  int function(FilePlayer player, const(char)* path) loadIntoPlayer;
+  /// Sets the buffer length for the `player`.
+  void function(FilePlayer player, float bufferLen) setBufferLength;
+  /// Plays the `player`. If `repeat` is > 0, it will loop the given number of times. If -1, it will loop forever.
+  int function(FilePlayer player, int repeat) play;
+  /// Returns `true` if the `player` is playing.
+  int function(FilePlayer player) isPlaying;
+  /// Pauses the `player`.
+  void function(FilePlayer player) pause;
+  /// Stops the `player`.
+  void function(FilePlayer player) stop;
+  /// Sets the volume for the left and right channels of the `player`.
+  void function(FilePlayer player, float left, float right) setVolume;
+  /// Populates `left` and `right` with the current volumes of the `player`.
+  void function(FilePlayer player, float* left, float* right) getVolume;
+  /// Returns the length of the file in seconds.
+  float function(FilePlayer player) getLength;
+  /// Sets the current offset of the `player` in seconds.
+  void function(FilePlayer player, float offset) setOffset;
+  /// Sets the playback rate of the `player`.
+  void function(FilePlayer player, float rate) setRate;
+  /// Sets the loop range for the `player`.
+  void function(FilePlayer player, float start, float end) setLoopRange;
+  /// Returns `true` if the `player` has underrun.
+  int function(FilePlayer player) didUnderrun;
+  /// Sets a function to be called when the `player` finishes playing.
+  void function(FilePlayer player, SoundSourceFinishCallback callback, void* userdata) setFinishCallback;
+  /// Sets a function to be called when the `player` loops.
+  void function(FilePlayer player, SoundSourceFinishCallback callback, void* userdata) setLoopCallback;
+  /// Returns the current offset of the `player` in seconds.
+  float function(FilePlayer player) getOffset;
+  /// Returns the playback rate of the `player`.
+  float function(FilePlayer player) getRate;
+  /// If `flag` is `true`, the `player` will stop when it underruns.
+  void function(FilePlayer player, int flag) setStopOnUnderrun;
+  /// Fades the volume of the `player` over `len` samples.
+  void function(FilePlayer player, float left, float right, int len, SoundSourceFinishCallback finishCallback, void* userdata) fadeVolume;
+  /// Sets a data source function for streaming MP3s.
+  void function(FilePlayer player, MP3StreamSourceCallback dataSource, void* userdata, float bufferLen) setMP3StreamSource;
+}
+
+enum SoundFormat {
+  sound8bitMono = 0,
+  sound8bitStereo = 1,
+  sound16bitMono = 2,
+  sound16bitStereo = 3,
+  soundADPCMMono = 4,
+  soundADPCMStereo = 5
+}
+
+/// Returns: `true` if the format is stereo.
+pragma(inline) bool soundFormatIsStereo(SoundFormat f) {
+  return (cast(int)f & 1) != 0;
+}
+
+/// Returns: `true` if the format is 16-bit.
+pragma(inline) bool soundFormatIs16bit(SoundFormat f) {
+  return f >= SoundFormat.sound16bitMono;
+}
+
+alias AudioSample = Alias!(void*);
+alias SamplePlayer = Alias!(void*);
+
+///
+struct SoundSampleApi {
+  @nogc nothrow:
+
+  AudioSample* function(int byteCount) newSampleBuffer;
+  int function(AudioSample* sample, const char* path) loadIntoSample;
+  AudioSample* function(const char* path) load;
+  AudioSample* function(uint8_t* data, SoundFormat format, uint32_t sampleRate, int byteCount, int shouldFreeData) newSampleFromData;
+  void function(AudioSample* sample, uint8_t** data, SoundFormat* format, uint32_t* sampleRate, uint32_t* bytelength) getData;
+  void function(AudioSample* sample) freeSample;
+  float function(AudioSample* sample) getLength;
+
+  // 2.4
+  int function(AudioSample* sample) decompress;
+
 }
 
 ///
@@ -1024,6 +1108,7 @@ struct SoundSynth {
   @nogc nothrow:
   // TODO: Implement Playdate Sound Synth API
 }
+
 
 ///
 struct SoundSequence {
@@ -1053,9 +1138,25 @@ struct SoundEnvelope {
 }
 
 ///
-struct SoundSource {
+alias SoundSource = Alias!(void*);
+
+/// Callback for when a `SoundSource` finishes.
+alias SoundSourceFinishCallback = void function(SoundSource source, void* userdata) @nogc;
+
+///
+/// `SoundSource` is the parent class for `FilePlayer`, `SamplePlayer`, `PDSynth`, and `DelayLineTap`.
+/// You can safely cast those objects to a `SoundSource` and use these functions.
+struct SoundSourceApi {
   @nogc nothrow:
-  // TODO: Implement Playdate Sound Source API
+
+  /// Sets the volume for the left and right channels of the source.
+  void function(SoundSource source, float lvol, float rvol) setVolume;
+  /// Populates `outl` and `outr` with the current left and right volumes of the source.
+  void function(SoundSource source, float* outl, float* outr) getVolume;
+  /// Returns `true` if the source is currently playing.
+  int function(SoundSource source) isPlaying;
+  /// Sets a function to be called when the source finishes playing.
+  void function(SoundSource source, SoundSourceFinishCallback callback, void* userdata) setFinishCallback;
 }
 
 ///
@@ -1095,9 +1196,9 @@ struct Sound {
 	///
   SoundChannelApi* channel;
 	///
-  SoundFileplayer* fileplayer;
+  SoundFileplayerApi* fileplayer;
 	///
-  SoundSample* sample;
+  SoundSampleApi* sample;
 	///
   SoundSampleplayer* sampleplayer;
 	///
@@ -1111,7 +1212,7 @@ struct Sound {
 	///
   SoundEnvelope* envelope;
 	///
-  SoundSource* source;
+  SoundSourceApi* source;
 	///
   ControlSignal* controlsignal;
 	///
@@ -1138,6 +1239,7 @@ struct Sound {
   void function(RecordCallback callback, void* context, bool forceInternal) setMicCallback;
 	/// If `headphone` contains a non-null pointer, the value is set to `true` if headphones are currently plugged in.
   /// Likewise, mic is set if the headphones include a microphone.
+
   /// If `changeCallback` is provided, it will be called when the headset or mic status changes, and audio output
   /// will not automatically switch from speaker to headphones when headphones are plugged in (and vice versa).
   /// In this case, the callback should use `playdate.sound.setOutputsActive()` to change the output if needed.
@@ -1487,4 +1589,8 @@ mixin template EventHandlerShim() {
   extern (C) int eventHandlerShim(PlaydateAPI* playdate, PDSystemEvent event, uint arg) @nogc nothrow {
     return eventHandler(playdate, event, arg);
   }
+}
+
+/*
+*/
 }
