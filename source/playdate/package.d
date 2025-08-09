@@ -1097,10 +1097,45 @@ struct SoundSampleApi {
 
 }
 
-///
-struct SoundSampleplayer {
+/// `SamplePlayer` extends `SoundSource`.
+struct SoundSampleplayerApi {
   @nogc nothrow:
-  // TODO: Implement Playdate Sound Sampleplayer API
+
+  /// Creates a new `SamplePlayer`.
+  SamplePlayer function() newPlayer;
+  /// Frees the `player`.
+  void function(SamplePlayer player) freePlayer;
+  /// Assigns `sample` to `player`.
+  void function(SamplePlayer player, AudioSample sample) setSample;
+  /// Plays the `player`. If `repeat` is > 0, it will loop the given number of times. If -1, it will loop forever.
+  /// The `rate` argument determines the playback speed.
+  int function(SamplePlayer player, int repeat, float rate) play;
+  /// Returns `true` if the `player` is playing.
+  int function(SamplePlayer player) isPlaying;
+  /// Stops the `player`.
+  void function(SamplePlayer player) stop;
+  /// Sets the volume for the left and right channels of the `player`.
+  void function(SamplePlayer player, float left, float right) setVolume;
+  /// Populates `left` and `right` with the current volumes of the `player`.
+  void function(SamplePlayer player, float* left, float* right) getVolume;
+  /// Returns the length of the assigned sample in seconds.
+  float function(SamplePlayer player) getLength;
+  /// Sets the current offset of the `player` in seconds.
+  void function(SamplePlayer player, float offset) setOffset;
+  /// Sets the playback rate of the `player`.
+  void function(SamplePlayer player, float rate) setRate;
+  /// Sets the play range for the `player`.
+  void function(SamplePlayer player, int start, int end) setPlayRange;
+  /// Sets a function to be called when the `player` finishes playing.
+  void function(SamplePlayer player, SoundSourceFinishCallback callback, void* userdata) setFinishCallback;
+  /// Sets a function to be called when the `player` loops.
+  void function(SamplePlayer player, SoundSourceFinishCallback callback, void* userdata) setLoopCallback;
+  /// Returns the current offset of the `player` in seconds.
+  float function(SamplePlayer player) getOffset;
+  /// Returns the playback rate of the `player`.
+  float function(SamplePlayer player) getRate;
+  /// Pauses or resumes the `player`.
+  void function(SamplePlayer player, int flag) setPaused;
 }
 
 ///
@@ -1182,11 +1217,33 @@ struct SoundInstrument {
 /// `PDSynthLFO` and `PDSynthEnvelope` are subclasses of `PDSynthSignal`.
 alias PDSynthSignalValue = Alias!(void*);
 alias PDSynthSignal = Alias!(void*);
+alias MIDINote = float;
 
 ///
-struct SoundSignal {
+enum NOTE_C4 = 60;
+
+///
+alias SignalStepCallback = float function(void* userdata, int* ioframes, float* ifval) @nogc;
+/// `len` = -1 for indefinite
+alias SignalNoteOnCallback = void function(void* userdata, MIDINote note, float vel, float len) @nogc;
+/// `stop` = 0 for note release, = 1 when note stops playing
+alias SignalNoteOffCallback = void function(void* userdata, int stop, int offset) @nogc;
+///
+alias SignalDeallocCallback = void function(void* userdata) @nogc;
+
+///
+struct SoundSignalApi {
   @nogc nothrow:
-  // TODO: Implement Playdate Sound Signal API
+  /// Creates a new `PDSynthSignal`.
+  PDSynthSignal function(SignalStepCallback step, SignalNoteOnCallback noteOn, SignalNoteOffCallback noteOff, SignalDeallocCallback dealloc, void* userdata) newSignal;
+  /// Frees the `signal`.
+  void function(PDSynthSignal signal) freeSignal;
+  /// Returns the current value of the `signal`.
+  float function(PDSynthSignal signal) getValue;
+  /// Sets a scaling factor for the `signal`'s value.
+  void function(PDSynthSignal signal, float scale) setValueScale;
+  /// Sets an offset for the `signal`'s value.
+  void function(PDSynthSignal signal, float offset) setValueOffset;
 }
 
 ///
@@ -1200,7 +1257,7 @@ struct Sound {
 	///
   SoundSampleApi* sample;
 	///
-  SoundSampleplayer* sampleplayer;
+  SoundSampleplayerApi* sampleplayer;
 	///
   SoundSynth* synth;
 	///
@@ -1255,7 +1312,7 @@ struct Sound {
 
 	///
   @AddedIn(1, 12)
-	SoundSignal* signal;
+	SoundSignalApi* signal;
 }
 
 /// 
@@ -1589,8 +1646,4 @@ mixin template EventHandlerShim() {
   extern (C) int eventHandlerShim(PlaydateAPI* playdate, PDSystemEvent event, uint arg) @nogc nothrow {
     return eventHandler(playdate, event, arg);
   }
-}
-
-/*
-*/
 }
