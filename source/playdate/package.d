@@ -1160,16 +1160,89 @@ struct SoundEffectApi {
   // TODO: Implement Playdate Sound Effect API
 }
 
-///
-struct SoundLfo {
-  @nogc nothrow:
-  // TODO: Implement Playdate Sound Lfo API
+/// Type of Low-Frequency Oscillator.
+enum LfoType {
+  typeSquare,
+  typeTriangle,
+  typeSine,
+  typeSampleAndHold,
+  typeSawtoothUp,
+  typeSawtoothDown,
+  typeArpeggiator,
+  typeFunction
 }
 
+/// `PDSynthLFO` inherits from `PDSynthSignal`.
+alias PDSynthLfo = Alias!(void*);
+
+/// Callback function for a custom LFO.
+alias LfoCallback = float function(PDSynthLfo lfo, void* userdata) @nogc;
+
 ///
-struct SoundEnvelope {
+struct SoundLfoApi {
   @nogc nothrow:
-  // TODO: Implement Playdate Sound Envelope API
+
+  /// Creates a new `PDSynthLFO`.
+  PDSynthLfo function(LfoType type) newLFO;
+  /// Frees the `lfo`.
+  void function(PDSynthLfo lfo) freeLFO;
+  /// Sets the `type` of the `lfo`.
+  void function(PDSynthLfo lfo, LfoType type) setType;
+  /// Sets the `rate` of the `lfo`.
+  void function(PDSynthLfo lfo, float rate) setRate;
+  /// Sets the `phase` of the `lfo`.
+  void function(PDSynthLfo lfo, float phase) setPhase;
+  /// Sets the `center` of the `lfo`.
+  void function(PDSynthLfo lfo, float center) setCenter;
+  /// Sets the `depth` of the `lfo`.
+  void function(PDSynthLfo lfo, float depth) setDepth;
+  /// Sets the arpeggiation `steps` for the `lfo`.
+  void function(PDSynthLfo lfo, int nSteps, float* steps) setArpeggiation;
+  /// Sets a custom function for the `lfo`.
+  void function(PDSynthLfo lfo, LfoCallback lfoFunc, void* userdata, int interpolate) setFunction;
+  /// Sets the delay for the `lfo`.
+  void function(PDSynthLfo lfo, float holdoff, float ramptime) setDelay;
+  /// Sets whether the `lfo` retriggers on note-on.
+  void function(PDSynthLfo lfo, int flag) setRetrigger;
+  /// Returns the current value of the `lfo`.
+  float function(PDSynthLfo lfo) getValue;
+  /// Sets whether the `lfo` is global.
+  @AddedIn(1, 10) void function(PDSynthLfo lfo, int global) setGlobal;
+  /// Sets the start phase of the `lfo`.
+  @AddedIn(2, 2) void function(PDSynthLfo lfo, float phase) setStartPhase;
+}
+
+/// `PDSynthEnvelope` inherits from `PDSynthSignal`.
+alias PDSynthEnvelope = Alias!(void*);
+
+///
+struct SoundEnvelopeApi {
+  @nogc nothrow:
+
+  /// Creates a new ADSR envelope.
+  PDSynthEnvelope function(float attack, float decay, float sustain, float release) newEnvelope;
+  /// Frees the `env`.
+  void function(PDSynthEnvelope env) freeEnvelope;
+  /// Sets the attack time for the `env`.
+  void function(PDSynthEnvelope env, float attack) setAttack;
+  /// Sets the decay time for the `env`.
+  void function(PDSynthEnvelope env, float decay) setDecay;
+  /// Sets the sustain level for the `env`.
+  void function(PDSynthEnvelope env, float sustain) setSustain;
+  /// Sets the release time for the `env`.
+  void function(PDSynthEnvelope env, float release) setRelease;
+  /// Sets whether the `env` is legato.
+  void function(PDSynthEnvelope env, int flag) setLegato;
+  /// Sets whether the `env` retriggers on note-on.
+  void function(PDSynthEnvelope env, int flag) setRetrigger;
+  /// Returns the current value of the `env`.
+  float function(PDSynthEnvelope env) getValue;
+  /// Sets the curvature of the attack/decay/release ramps.
+  @AddedIn(1, 13) void function(PDSynthEnvelope env, float amount) setCurvature;
+  /// Sets how much the envelope's output is scaled by the note's velocity.
+  @AddedIn(1, 13) void function(PDSynthEnvelope env, float velsens) setVelocitySensitivity;
+  /// Scales the envelope's attack/decay/release times for notes based on the note's pitch.
+  @AddedIn(1, 13) void function(PDSynthEnvelope env, float scaling, MIDINote start, MIDINote end) setRateScaling;
 }
 
 ///
@@ -1265,9 +1338,9 @@ struct Sound {
 	///
   SoundEffectApi* effect;
 	///
-  SoundLfo* lfo;
+  SoundLfoApi* lfo;
 	///
-  SoundEnvelope* envelope;
+  SoundEnvelopeApi* envelope;
 	///
   SoundSourceApi* source;
 	///
