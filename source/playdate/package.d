@@ -1138,12 +1138,102 @@ struct SoundSampleplayerApi {
   void function(SamplePlayer player, int flag) setPaused;
 }
 
-///
-struct SoundSynth {
-  @nogc nothrow:
-  // TODO: Implement Playdate Sound Synth API
+/// Waveform type for a synthesizer.
+enum SoundWaveform {
+  waveformSquare,
+  waveformTriangle,
+  waveformSine,
+  waveformNoise,
+  waveformSawtooth,
+  waveformPoPhase,
+  waveformPoDigital,
+  waveformPoVosim
 }
 
+/// `PDSynth` extends `SoundSource`.
+alias PDSynth = Alias!(void*);
+
+/// samples are in Q8.24 format. left is either the left channel or the single mono channel,
+/// right is non-NULL only if the stereo flag was set in the setGenerator() call.
+/// nsamples is at most 256 but may be shorter
+/// rate is Q0.32 per-frame phase step, drate is per-frame rate step (i.e., do rate += drate every frame)
+/// Returns: The number of sample frames rendered.
+alias SynthRenderCallback = int function(void* userdata, int* left, int* right, int nsamples, uint rate, int drate) @nogc;
+
+/// `len` == -1 if indefinite
+alias SynthNoteOnCallback = void function(void* userdata, MIDINote note, float velocity, float len) @nogc;
+///
+alias SynthReleaseCallback = void function(void* userdata, int stop) @nogc;
+///
+alias SynthSetParameterCallback = int function(void* userdata, int parameter, float value) @nogc;
+///
+alias SynthDeallocCallback = void function(void* userdata) @nogc;
+///
+alias SynthCopyUserdataCallback = void* function(void* userdata) @nogc;
+
+///
+struct SoundSynthApi {
+  @nogc nothrow:
+
+  /// Creates a new `PDSynth`.
+  PDSynth function() newSynth;
+  /// Frees the `synth`.
+  void function(PDSynth synth) freeSynth;
+  /// Sets the waveform for the `synth`.
+  void function(PDSynth synth, SoundWaveform wave) setWaveform;
+  /// Deprecated: Use `setGenerator` instead.
+  deprecated void function(PDSynth synth, int stereo, SynthRenderCallback render, SynthNoteOnCallback noteOn, SynthReleaseCallback release, SynthSetParameterCallback setparam, SynthDeallocCallback dealloc, void* userdata) setGenerator_deprecated;
+  /// Sets a sample for the `synth` to play.
+  void function(PDSynth synth, AudioSample sample, uint sustainStart, uint sustainEnd) setSample;
+  /// Sets the attack time for the `synth`'s envelope.
+  void function(PDSynth synth, float attack) setAttackTime;
+  /// Sets the decay time for the `synth`'s envelope.
+  void function(PDSynth synth, float decay) setDecayTime;
+  /// Sets the sustain level for the `synth`'s envelope.
+  void function(PDSynth synth, float sustain) setSustainLevel;
+  /// Sets the release time for the `synth`'s envelope.
+  void function(PDSynth synth, float release) setReleaseTime;
+  /// Sets the transposition for the `synth`.
+  void function(PDSynth synth, float halfSteps) setTranspose;
+  /// Sets the frequency modulator for the `synth`.
+  void function(PDSynth synth, PDSynthSignalValue mod) setFrequencyModulator;
+  /// Returns the frequency modulator for the `synth`.
+  PDSynthSignalValue function(PDSynth synth) getFrequencyModulator;
+  /// Sets the amplitude modulator for the `synth`.
+  void function(PDSynth synth, PDSynthSignalValue mod) setAmplitudeModulator;
+  /// Returns the amplitude modulator for the `synth`.
+  PDSynthSignalValue function(PDSynth synth) getAmplitudeModulator;
+  /// Returns the number of parameters for the `synth`.
+  int function(PDSynth synth) getParameterCount;
+  /// Sets a parameter on the `synth`.
+  int function(PDSynth synth, int parameter, float value) setParameter;
+  /// Sets a modulator for a parameter on the `synth`.
+  void function(PDSynth synth, int parameter, PDSynthSignalValue mod) setParameterModulator;
+  /// Returns the modulator for a parameter on the `synth`.
+  PDSynthSignalValue function(PDSynth synth, int parameter) getParameterModulator;
+  /// Plays a note on the `synth`. `len` = -1 for indefinite.
+  void function(PDSynth synth, float freq, float vel, float len, uint when) playNote;
+  /// Plays a MIDI note on the `synth`. `len` = -1 for indefinite.
+  void function(PDSynth synth, MIDINote note, float vel, float len, uint when) playMIDINote;
+  /// Triggers the release of a note on the `synth`.
+  void function(PDSynth synth, uint when) noteOff;
+  /// Stops the `synth` immediately.
+  void function(PDSynth synth) stop;
+  /// Sets the volume for the `synth`.
+  void function(PDSynth synth, float left, float right) setVolume;
+  /// Gets the volume for the `synth`.
+  void function(PDSynth synth, float* left, float* right) getVolume;
+  /// Returns `true` if the `synth` is playing.
+  int function(PDSynth synth) isPlaying;
+  /// Returns the envelope for the `synth`. The synth keeps ownership, do not free.
+  @AddedIn(1, 13) PDSynthEnvelope function(PDSynth synth) getEnvelope;
+  /// Sets a wavetable for the `synth`.
+  @AddedIn(2, 2) int function(PDSynth synth, AudioSample sample, int log2size, int columns, int rows) setWavetable;
+  /// Sets a custom generator for the `synth`.
+  @AddedIn(2, 4) void function(PDSynth synth, int stereo, SynthRenderCallback render, SynthNoteOnCallback noteOn, SynthReleaseCallback release, SynthSetParameterCallback setparam, SynthDeallocCallback dealloc, SynthCopyUserdataCallback copyUserdata, void* userdata) setGenerator;
+  /// Creates a copy of the `synth`.
+  @AddedIn(2, 4) PDSynth function(PDSynth synth) copy;
+}
 
 ///
 struct SoundSequence {
@@ -1332,7 +1422,7 @@ struct Sound {
 	///
   SoundSampleplayerApi* sampleplayer;
 	///
-  SoundSynth* synth;
+  SoundSynthApi* synth;
 	///
   SoundSequence* sequence;
 	///
